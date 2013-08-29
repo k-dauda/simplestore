@@ -66,7 +66,7 @@ var simplestore =  (function () {
          * @return  {string} wrapped storage key
          * @private
          */
-            _wrapKey = function (key) {
+        _wrapKey = function (key) {
             return _prefix+key;
         },
 
@@ -87,7 +87,7 @@ var simplestore =  (function () {
          * @param objB - object to extend from
          * @private
          */
-            _extend = function (objA, objB) {
+        _extend = function (objA, objB) {
             for (var key in objB) {
                 if (objB.hasOwnProperty(key)) {
                     objA[key] = objB[key];
@@ -116,11 +116,11 @@ var simplestore =  (function () {
             options.ready = true;
         },
 
-    /*
-     * returns the keys of all the items stored by simple store
-     *
-     * @return {array} array containing all keys stored by simple store
-     */
+        /*
+         * returns the keys of all the items stored by simple store
+         *
+         * @return {array} array containing all keys stored by simple store
+         */
         _getKeys = function () {
             var keys = [];
             for (var key in localStorage) {
@@ -230,12 +230,13 @@ var simplestore =  (function () {
                 update(key, item.data, options);
             }
         },
+
         /**
          *
          * @param key
          * @param options
          */
-            _request = function (key, options) {
+        _request = function (key, options) {
             if (!key || typeof key !== 'string') {
                 throw new Error('must provide a key of type string');
             }
@@ -700,7 +701,6 @@ var simplestore =  (function () {
         updateAppVersion: updateAppVersion,
         fetch: fetch,
         send: send,
-        request: request,
         registerReq: registerReq,
         unregisterReq: unregisterReq,
         registerAllReqs: registerAllReqs,
