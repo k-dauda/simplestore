@@ -179,6 +179,137 @@ var simplestore =  (function () {
             return transform;
         },
 
+        /**
+         * Used to clean out data that was stored for an old version
+         *
+         * @param newVersion - new version to store
+         */
+        _clearOldVersionData = function(newVersion) {
+            if (!newVersion || typeof newVersion !== 'string') {
+                throw new Error('must provide new app version');
+            }
+
+            var oldVersion = get(appKey);
+            // compare versions and clean if not the same
+            if (oldVersion !== newVersion) {
+                clear();
+            }
+
+            // update app version to latest
+            update(appKey, newVersion, { noExpiry: true });
+        },
+
+        /**
+         * Used to update the timestamp of a stored item
+         *
+         * @param key - key of item in store to touch
+         * @param options
+         * @param item - item to touch in storage
+         */
+        _touch = function(key, options, item) {
+            options = options || {};
+
+            if (!key || typeof key !== 'string') {
+                throw new Error('must provide storage entry key of type string to touch associated data');
+            }
+
+            var ssKey = _wrapKey(key);
+            if (!item) {
+                try {
+                    item = JSON.parse(options.isSessionItem ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
+                }
+                catch (exception) {
+                    // ignore exception
+                }
+            }
+
+            if (item && item.days) {
+                options.expiry = item.days;
+                options.skipGet = true;
+                options.item = item;
+                update(key, item.data, options);
+            }
+        },
+        /**
+         *
+         * @param key
+         * @param options
+         */
+            _request = function (key, options) {
+            if (!key || typeof key !== 'string') {
+                throw new Error('must provide a key of type string');
+            }
+
+            options = options || {};
+            if (!options.ready) {
+                _setDefaultOptions(options);
+            }
+
+            options.method = options.method.toUpperCase();
+
+            if (!options.url || typeof options.url !== 'string') {
+                throw new Error('must provide a url to fetch data with');
+            }
+
+            try {
+                var url   = _getUrl(options);
+                var xhr   = new XMLHttpRequest();
+                options.isJson = url.indexOf('.json') !== -1;
+                xhr.onreadystatechange = function () {
+                    if (this.readyState == 4) { // If the HTTP request has completed
+                        if (this.status == 200 || this.status == options.itemValidCode) {  // if HTTP status response code is successful (200) or cache is still valid (304)
+
+                            var returndata;
+                            // if cache item is still valid just return cachedItem in call back
+                            if (this.status == options.itemValidCode) {
+                                returndata = options.cachedItem;
+                            }
+                            else {
+
+                                //if (options.method == 'POST') { //} || options.method == 'PUT') {
+                                // looks like the store isn't valid anymore update store and return server response in call back
+                                var response = options.isJson ? JSON.parse(this.response) : this.response;
+                                returndata = _transformResponse(options, response);
+                                update(key, returndata, options);
+                                //}
+                            }
+
+                            // update item request data
+                            registerReq(key, options);
+
+//                          if (options.method == 'DELETE') {
+//                              // also remove item from store
+//                              remove(key);
+//                          }
+                            return options.callBack(returndata);
+                        }
+
+                        // return server response in case of failure
+                        options.callBack(response);
+                    }
+                };
+
+                var data = null;
+                xhr.open(options.method, url, true);
+                if (options.method === 'POST' || options.method === 'PUT') {
+                    if (options.data) {
+                        data = options.isJson ? JSON.stringify(options.data) : options.data;
+                        if (options.isJson) {
+                            xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+                        }
+                    }
+                }
+                xhr.send(data);
+            }
+            catch(exception) {
+                // pass on exception?
+                if (options.callBack) {
+                    options.callBack(exception);
+                }
+            }
+        },
+
+
 
     /**
      *    PUBLIC METHODS
@@ -188,7 +319,7 @@ var simplestore =  (function () {
          * Method to configure default values for simple store
          * @param options
          */
-            configure = function(options) {
+        configure = function(options) {
             options = options || {};
 
             for (var key in options) {
@@ -219,7 +350,7 @@ var simplestore =  (function () {
          * Used to clear all the data store using simple store
          * Ignores session storage
          */
-            clear = function() {
+        clear = function() {
             var keys = _getKeys();
             for (var i = 0; i < keys.length; i++) {
                 localStorage.removeItem(keys[i]);
@@ -235,7 +366,7 @@ var simplestore =  (function () {
          *
          * @return {boolean}, true if save is successful, false otherwise
          */
-            save = function(key, value, options) {
+        save = function(key, value, options) {
             var ssKey, expiry, item, serialized, _data;
 
             // if caching is disabled ignore save
@@ -306,7 +437,7 @@ var simplestore =  (function () {
          *
          * @return {boolean}, true if update is successful, false otherwise
          */
-            update = function(key, value, options) {
+        update = function(key, value, options) {
             options = options || {};
             options.overwrite = true;
             return save(key, value, options);
@@ -351,7 +482,7 @@ var simplestore =  (function () {
 
                 // touch item after cache hit except during updates and for hits for permanent items
                 if (!options.skipTouch && item && item.exp) {
-                    touch(key, options, item);
+                    _touch(key, options, item);
                 }
             }
 
@@ -364,7 +495,7 @@ var simplestore =  (function () {
          * @param key - key of item in store to remove
          * @param options
          */
-            remove = function(key, options) {
+        remove = function(key, options) {
             options = options || {};
 
             if (!key || typeof key !== 'string') {
@@ -380,41 +511,9 @@ var simplestore =  (function () {
         },
 
         /**
-         * Used to update the timestamp of a stored item
-         *
-         * @param key - key of item in store to touch
-         * @param options
-         * @param item - item to touch in storage
-         */
-            touch = function(key, options, item) {
-            options = options || {};
-
-            if (!key || typeof key !== 'string') {
-                throw new Error('must provide storage entry key of type string to touch associated data');
-            }
-
-            var ssKey = _wrapKey(key);
-            if (!item) {
-                try {
-                    item = JSON.parse(options.isSessionItem ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
-                }
-                catch (exception) {
-                    // ignore exception
-                }
-            }
-
-            if (item && item.days) {
-                options.expiry = item.days;
-                options.skipGet = true;
-                options.item = item;
-                update(key, item.data, options);
-            }
-        },
-
-        /**
          * Used to clean up storage of expired items
          */
-            clean = function() {
+        clean = function() {
             var item, nextRun, now, runTime, cleanupKey;
 
 //          if (!_options.autoClean) {
@@ -449,38 +548,14 @@ var simplestore =  (function () {
         },
 
         /**
-         * Used to clean out data that was stored for an old version
-         *
-         * @param newVersion - new version to store
-         */
-            clearOldVersionData = function(newVersion) {
-            if (!key || typeof key !== 'string') {
-                throw new Error('must define key of type string for app version item');
-            }
-
-            if (!newVersion || typeof newVersion !== 'string') {
-                throw new Error('must provide new app version');
-            }
-
-            var oldVersion = get(appKey);
-            // compare versions and clean if not the same
-            if (oldVersion !== newVersion) {
-                clear();
-            }
-
-            // update app version to latest
-            update(appKey, newVersion, { noExpiry: true });
-        },
-
-        /**
          * Used to update an apps version
          * if auto clean is set, clean old app data
          *
          * @param version - version to store
          */
-            updateAppVersion = function (version) {
+        updateAppVersion = function (version) {
             if (_options.autoClean) {
-                clearOldVersionData(version);
+                _clearOldVersionData(version);
             }
             else {
                 update(_appKey, version, { noExpiry: true });
@@ -493,7 +568,7 @@ var simplestore =  (function () {
          * @param key - key of item
          * @param options
          */
-            fetch = function (key, options) {
+        fetch = function (key, options) {
             options = options || {};
             _setDefaultOptions(options);
 
@@ -533,7 +608,7 @@ var simplestore =  (function () {
                 }
             }
 
-            request(key, options);
+            _request(key, options);
         },
 
         /**
@@ -541,88 +616,14 @@ var simplestore =  (function () {
          * @param key
          * @param options
          */
-            post = function (key, options) {
+        send = function (key, options) {
             options = options || {};
 
             if (!options.method) {
                 options.method = 'POST';
             }
 
-            request(key, options);
-        },
-        /**
-         *
-         * @param key
-         * @param options
-         */
-            request = function (key, options) {
-            options = options || {};
-            if (!options.ready) {
-                _setDefaultOptions(options);
-            }
-
-            options.method = options.method.toUpperCase();
-
-            if (!options.url || typeof options.url !== 'string') {
-                throw new Error('must provide a url to fetch data with');
-            }
-
-            try {
-                var url   = _getUrl(options);
-                var xhr   = new XMLHttpRequest();
-                options.isJson = url.indexOf('.json') !== -1;
-                xhr.onreadystatechange = function () {
-                    if (this.readyState == 4) { // If the HTTP request has completed
-                        if (this.status == 200 || this.status == options.itemValidCode) {  // if HTTP status response code is successful (200) or cache is still valid (304)
-
-                            var returndata;
-                            // if cache item is still valid just return cachedItem in call back
-                            if (this.status == options.itemValidCode) {
-                                returndata = options.cachedItem;
-                            }
-                            else {
-
-                                //if (options.method == 'POST') { //} || options.method == 'PUT') {
-                                // looks like the store isn't valid anymore update store and return server response in call back
-                                var response = options.isJson ? JSON.parse(this.response) : this.response;
-                                returndata = _transformResponse(options, response);
-                                update(key, returndata, options);
-                                //}
-                            }
-
-                            // update item request data
-                            registerReq(key, options);
-
-//                          if (options.method == 'DELETE') {
-//                              // also remove item from store
-//                              remove(key);
-//                          }
-                            return options.callBack(returndata);
-                        }
-
-                        // return server response in case of failure
-                        options.callBack(response);
-                    }
-                };
-
-                var data = null;
-                xhr.open(options.method, url, true);
-                if (options.method === 'POST' || options.method === 'PUT') {
-                    if (options.data) {
-                        data = options.isJson ? JSON.stringify(options.data) : options.data;
-                        if (options.isJson) {
-                            xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
-                        }
-                    }
-                }
-                xhr.send(data);
-            }
-            catch(exception) {
-                // pass on exception?
-                if (options.callBack) {
-                    options.callBack(exception);
-                }
-            }
+            _request(key, options);
         },
 
         /**
@@ -630,7 +631,7 @@ var simplestore =  (function () {
          * @param key
          * @param options
          */
-            registerReq = function (key, options) {
+        registerReq = function (key, options) {
             options = options || {};
             options.noExpiry = true; // keep urls permanently
 
@@ -658,7 +659,7 @@ var simplestore =  (function () {
          * @param key
          * @param options
          */
-            unregisterReq = function (key) {
+        unregisterReq = function (key) {
             //remove(key); remove stored data as well?
             remove(_reqPrefix+key);
         },
@@ -667,7 +668,7 @@ var simplestore =  (function () {
          *
          * @param reqs
          */
-            registerAllReqs = function (reqs) {
+        registerAllReqs = function (reqs) {
             if (reqs && typeof reqs.push === 'function') {
                 for (var i = 0; i < reqs.length; i++) {
                     registerReq(req[i].key, req[i].options);
@@ -679,7 +680,7 @@ var simplestore =  (function () {
          *
          * @param reqs
          */
-            unregisterAllReqs = function (reqs) {
+        unregisterAllReqs = function (reqs) {
             if (reqs && typeof reqs.push === 'function') {
                 for (var i = 0; i < reqs.length; i++) {
                     unregisterReq(req[i]);
@@ -695,12 +696,10 @@ var simplestore =  (function () {
         update: update,
         get: get,
         remove: remove,
-        touch: touch,
         clean: clean,
-        clearOldVersionData: clearOldVersionData,
         updateAppVersion: updateAppVersion,
         fetch: fetch,
-        post: post,
+        send: send,
         request: request,
         registerReq: registerReq,
         unregisterReq: unregisterReq,
