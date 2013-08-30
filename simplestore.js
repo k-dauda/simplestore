@@ -219,14 +219,14 @@ var simplestore =  (function () {
                 throw new Error('must provide new app version of type string');
             }
 
-            var oldVersion = get(appKey);
+            var oldVersion = get(_appKey);
             // compare versions and clean if not the same
             if (oldVersion !== newVersion) {
                 clear();
             }
 
             // update app version to latest
-            update(appKey, newVersion, { noExpiry: true });
+            update(_appKey, newVersion, { noExpiry: true });
         },
 
         /**
