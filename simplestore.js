@@ -70,6 +70,13 @@ var simplestore =  (function () {
             return _prefix+key;
         },
 
+        /**
+         * method used to check if an object has properties
+         *
+         * @param obj - Object to check
+         * @return {boolean}
+         * @private
+         */
         _isEmpty = function (obj) {
             for (var key in obj) {
                 if (obj.hasOwnProperty(key)) {
@@ -97,6 +104,13 @@ var simplestore =  (function () {
             return objA;
         },
 
+        /**
+         * method used to set up options object with default values if they haven't been set
+         * or they've been set with invalid value
+         *
+         * @params options - options object
+         * @private
+         */
         _setDefaultOptions = function (options) {
             for (var key in _options) {
                 if (_options.hasOwnProperty(key)) {
@@ -132,6 +146,13 @@ var simplestore =  (function () {
             return keys;
         },
 
+        /**
+         * Method to build url with query params
+         *
+         * @params options  - options object
+         * @return {string} - full url with query params
+         * @private
+         */
         _getUrl = function (options) {
             var url = options.url;
             if (options.method === 'GET') {
@@ -147,6 +168,14 @@ var simplestore =  (function () {
             return url;
         },
 
+        /**
+         * Method used to extract relevant data from server response
+         *
+         * @param options   - options object
+         * @param response  - server response
+         * @return {object} - extracted data object
+         * @private
+         */
         _transformResponse = function (options, response) {
             var transform = response;
             if (options.useTransform) {
@@ -183,10 +212,11 @@ var simplestore =  (function () {
          * Used to clean out data that was stored for an old version
          *
          * @param newVersion - new version to store
+         * @private
          */
         _clearOldVersionData = function(newVersion) {
             if (!newVersion || typeof newVersion !== 'string') {
-                throw new Error('must provide new app version');
+                throw new Error('must provide new app version of type string');
             }
 
             var oldVersion = get(appKey);
@@ -202,9 +232,10 @@ var simplestore =  (function () {
         /**
          * Used to update the timestamp of a stored item
          *
-         * @param key - key of item in store to touch
-         * @param options
-         * @param item - item to touch in storage
+         * @param key       - key of item in store to touch
+         * @param [options] - options object
+         * @param item      - item to touch in storage
+         * @private
          */
         _touch = function(key, options, item) {
             options = options || {};
@@ -232,9 +263,11 @@ var simplestore =  (function () {
         },
 
         /**
+         * Method to make ajax request and sends response back through call back
          *
-         * @param key
-         * @param options
+         * @param key     - resource key
+         * @param options - options object
+         * @private
          */
         _request = function (key, options) {
             if (!key || typeof key !== 'string') {
@@ -255,10 +288,10 @@ var simplestore =  (function () {
             try {
                 var url   = _getUrl(options);
                 var xhr   = new XMLHttpRequest();
-                options.isJson = url.indexOf('.json') !== -1;
+                options.isJson = url.indexOf('.json') !== -1; // TODO watch out for jsonp
                 xhr.onreadystatechange = function () {
                     if (this.readyState == 4) { // If the HTTP request has completed
-                        if (this.status == 200 || this.status == options.itemValidCode) {  // if HTTP status response code is successful (200) or cache is still valid (304)
+                        if (this.status == 200 || this.status == options.itemValidCode) {  // if HTTP status response code is successful (200) or resource is unmodified (304)
 
                             var returndata;
                             // if cache item is still valid just return cachedItem in call back
@@ -318,6 +351,7 @@ var simplestore =  (function () {
 
         /**
          * Method to configure default values for simple store
+         *
          * @param options
          */
         configure = function(options) {
@@ -343,12 +377,12 @@ var simplestore =  (function () {
          *
          * @param disable - boolean value
          */
-            disable = function (disable) {
+        disable = function (disable) {
             _cachingDisabled = disable;
         },
 
         /**
-         * Used to clear all the data store using simple store
+         * Used to clear all the data stored using simple store
          * Ignores session storage
          */
         clear = function() {
@@ -361,14 +395,14 @@ var simplestore =  (function () {
         /**
          * Used to save an item to web storage
          *
-         * @param key - key to save item in store with
-         * @param value - item to store or update
-         * @param options
+         * @param key       - key to save item in store with
+         * @param value     - item to store or update
+         * @param [options] - options object
          *
-         * @return {boolean}, true if save is successful, false otherwise
+         * @return {boolean}
          */
         save = function(key, value, options) {
-            var ssKey, expiry, item, serialized, _data;
+            var item;
 
             // if caching is disabled ignore save
             if (_cachingDisabled) {
@@ -397,7 +431,7 @@ var simplestore =  (function () {
                     throw new Error('store already contains item with key: ' + key + ', use update() to update item or set overwrite flag to true');
                 }
 
-                _data = {
+                var _data = {
                     data: value
                 };
 
@@ -407,15 +441,15 @@ var simplestore =  (function () {
                 }
 
                 if (options.autoExpiry && !options.noExpiry && options.expiry) {
-                    expiry = new Date().getTime() + (options.expiry * _daysInMillisecs);
+                    var expiry = new Date().getTime() + (options.expiry * _daysInMillisecs);
                     _extend(_data, {
                         exp: expiry,
                         days: options.expiry
                     });
                 }
 
-                serialized = JSON.stringify(_data);
-                ssKey = _wrapKey(key);
+                var serialized = JSON.stringify(_data);
+                var ssKey = _wrapKey(key);
                 if (options.isSessionItem) {
                     sessionStorage.setItem(ssKey, serialized);
                 } else {
@@ -432,11 +466,11 @@ var simplestore =  (function () {
         /**
          * Updates an item in the store
          *
-         * @param key - key of item to update in store
-         * @param value - value of item to update in store
-         * @param options
+         * @param key       - key of item to update in store
+         * @param value     - value of item to update in store
+         * @param [options] - options object
          *
-         * @return {boolean}, true if update is successful, false otherwise
+         * @return {boolean}
          */
         update = function(key, value, options) {
             options = options || {};
@@ -447,9 +481,9 @@ var simplestore =  (function () {
         /**
          * Gets an item in the store
          *
-         * @param key - key to retrieve item with
-         * @param options
-         * @return {object} store item if found, otherwise undefined
+         * @param key       - key to retrieve resource with
+         * @param [options] - options object
+         * @return {object} - stored item if found, otherwise undefined
          */
         get = function(key, options) {
             var item = null;
@@ -493,8 +527,8 @@ var simplestore =  (function () {
         /**
          * Removes an item from store
          *
-         * @param key - key of item in store to remove
-         * @param options
+         * @param key       - key of item in store to remove
+         * @param [options] - options object
          */
         remove = function(key, options) {
             options = options || {};
@@ -566,8 +600,8 @@ var simplestore =  (function () {
         /**
          * Used to keep store in sync with server
          *
-         * @param key - key of item
-         * @param options
+         * @param key       - key of item
+         * @param [options] - options object
          */
         fetch = function (key, options) {
             options = options || {};
@@ -601,7 +635,17 @@ var simplestore =  (function () {
                     itemHash = options.hashResolver(options.cachedItem);
                 }
                 else {
-                    itemHash = options.extract ? options.cachedItem[options.extract][options.hashProp] : options.cachedItem[options.hashProp];
+                    if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf('.') === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
+                        var item = options.cachedItem[options.extract];
+                        if (item) {
+                            itemHash = item[options.hashProp]
+                        }
+                    }
+                    else {
+                        if (options.hashProp) {
+                            itemHash = options.cachedItem[options.hashProp];
+                        }
+                    }
                 }
 
                 if (itemHash) {
@@ -613,9 +657,10 @@ var simplestore =  (function () {
         },
 
         /**
+         * Method used to send 'post, put, delete' request and update cache accordingly
          *
-         * @param key
-         * @param options
+         * @param key       - resource key
+         * @param [options] - options object
          */
         send = function (key, options) {
             options = options || {};
@@ -628,9 +673,10 @@ var simplestore =  (function () {
         },
 
         /**
+         * Method used to register the request and params for a resource for easy fetching of resource
          *
-         * @param key
-         * @param options
+         * @param key       - resource key
+         * @param [options] - options object
          */
         registerReq = function (key, options) {
             options = options || {};
@@ -656,18 +702,19 @@ var simplestore =  (function () {
         },
 
         /**
+         * Method used to un-register the request and params for resource
          *
-         * @param key
-         * @param options
+         * @param key - resource key
          */
         unregisterReq = function (key) {
-            //remove(key); remove stored data as well?
+            // remove(key); remove stored data as well?
             remove(_reqPrefix+key);
         },
 
         /**
+         * Method used to register a list of requests and params for resources for easy fetching of resources
          *
-         * @param reqs
+         * @param reqs - list of request objects
          */
         registerAllReqs = function (reqs) {
             if (reqs && typeof reqs.push === 'function') {
@@ -678,13 +725,14 @@ var simplestore =  (function () {
         },
 
         /**
+         * Method used to un-register list of requests and params for resources
          *
-         * @param reqs
+         * @param keys - resource keys
          */
-        unregisterAllReqs = function (reqs) {
-            if (reqs && typeof reqs.push === 'function') {
-                for (var i = 0; i < reqs.length; i++) {
-                    unregisterReq(req[i]);
+        unregisterAllReqs = function (keys) {
+            if (keys && typeof keys.push === 'function') {
+                for (var i = 0; i < keys.length; i++) {
+                    unregisterReq(keys[i]);
                 }
             }
         };
