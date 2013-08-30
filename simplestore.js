@@ -114,12 +114,14 @@ var simplestore =  (function () {
         _setDefaultOptions = function (options) {
             for (var key in _options) {
                 if (_options.hasOwnProperty(key)) {
+                    var defaultValue = _options[key];
                     if (!options[key]) {
-                        options[key] = _options[key];
+                        // if option value hasn't been set, set it to default value
+                        options[key] = defaultValue;
                     }
                     else {
-                        // just make sure options has proper value type
-                        var defaultValue = _options[key];
+                        // if option is set to wrong type
+                        // overwrite value with default
                         if (typeof options[key] !== typeof defaultValue) {
                             options[key] = defaultValue;
                         }
@@ -196,7 +198,7 @@ var simplestore =  (function () {
                             }
                         }
 
-                        if (data) {
+                        if (data && field) {
                             result[field] = data;
                         }
                     }
@@ -549,16 +551,16 @@ var simplestore =  (function () {
          * Used to clean up storage of expired items
          */
         clean = function() {
-            var item, nextRun, now, runTime, cleanupKey;
+            var item;
 
 //          if (!_options.autoClean) {
 //              return;
 //          }
 
-            now        = new Date().getTime();
-            nextRun    = now + (_options.expiry * _daysInMillisecs);
-            cleanupKey = 'cleanUpTime';
-            runTime    = get(cleanupKey);
+            var now        = new Date().getTime();
+            var nextRun    = now + (_options.expiry * _daysInMillisecs);
+            var cleanupKey = 'cleanUpTime';
+            var runTime    = get(cleanupKey);
 
             // check time to see if its due a clean up
             if (!runTime || (runTime <= now)) {
