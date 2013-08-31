@@ -149,6 +149,60 @@ var simplestore =  (function () {
         },
 
         /**
+         * Used to clean out data that was stored for an old version
+         *
+         * @param newVersion - new version to store
+         * @private
+         */
+        _clearOldVersionData = function(newVersion) {
+            if (!newVersion || typeof newVersion !== 'string') {
+                throw new Error('must provide new app version of type string');
+            }
+
+            var oldVersion = get(_appKey);
+            // compare versions and clean if not the same
+            if (oldVersion !== newVersion) {
+                clear();
+            }
+
+            // update app version to latest
+            update(_appKey, newVersion, { noExpiry: true });
+        },
+
+        /**
+         * Used to update the timestamp of a stored item
+         *
+         * @param key       - key of item in store to touch
+         * @param [options] - options object
+         * @param item      - item to touch in storage
+         * @private
+         */
+        _touch = function(key, options, item) {
+            options = options || {};
+
+            if (!key || typeof key !== 'string') {
+                throw new Error('must provide storage entry key of type string to touch associated data');
+            }
+
+            var ssKey = _wrapKey(key);
+            if (!item) {
+                try {
+                    item = JSON.parse(options.isSessionItem ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
+                }
+                catch (exception) {
+                    // ignore exception
+                }
+            }
+
+            if (item && item.days) {
+                options.expiry = item.days;
+                options.skipGet = true;
+                options.item = item;
+                update(key, item.data, options);
+            }
+        },
+
+        /**
          * Method to build url with query params
          *
          * @params options  - options object
@@ -207,61 +261,12 @@ var simplestore =  (function () {
                 }
             }
 
+            // attempt to store resource hash
+            if (transform && options.hashProp && transform[options.hashProp]) {
+                options.params[options.hashProp] = transform[options.hashProp];
+            }
+
             return transform;
-        },
-
-        /**
-         * Used to clean out data that was stored for an old version
-         *
-         * @param newVersion - new version to store
-         * @private
-         */
-        _clearOldVersionData = function(newVersion) {
-            if (!newVersion || typeof newVersion !== 'string') {
-                throw new Error('must provide new app version of type string');
-            }
-
-            var oldVersion = get(_appKey);
-            // compare versions and clean if not the same
-            if (oldVersion !== newVersion) {
-                clear();
-            }
-
-            // update app version to latest
-            update(_appKey, newVersion, { noExpiry: true });
-        },
-
-        /**
-         * Used to update the timestamp of a stored item
-         *
-         * @param key       - key of item in store to touch
-         * @param [options] - options object
-         * @param item      - item to touch in storage
-         * @private
-         */
-        _touch = function(key, options, item) {
-            options = options || {};
-
-            if (!key || typeof key !== 'string') {
-                throw new Error('must provide storage entry key of type string to touch associated data');
-            }
-
-            var ssKey = _wrapKey(key);
-            if (!item) {
-                try {
-                    item = JSON.parse(options.isSessionItem ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
-                }
-                catch (exception) {
-                    // ignore exception
-                }
-            }
-
-            if (item && item.days) {
-                options.expiry = item.days;
-                options.skipGet = true;
-                options.item = item;
-                update(key, item.data, options);
-            }
         },
 
         /**
@@ -633,25 +638,22 @@ var simplestore =  (function () {
             if (cachedItem) {
                 var itemHash;
                 options.cachedItem = cachedItem;
-                if (options.useHashFunc) {
-                    itemHash = options.hashResolver(options.cachedItem);
-                }
-                else {
-                    if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf('.') === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
-                        var item = options.cachedItem[options.extract];
-                        if (item) {
-                            itemHash = item[options.hashProp]
-                        }
+                if (!options.params[options.hashProp]) {
+                    if (options.useHashFunc) {
+                        itemHash = options.hashResolver(options.cachedItem);
                     }
                     else {
-                        if (options.hashProp) {
-                            itemHash = options.cachedItem[options.hashProp];
+                        if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf('.') === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
+                            var item = options.cachedItem[options.extract];
+                            if (item) {
+                                itemHash = item[options.hashProp]
+                            }
                         }
                     }
-                }
 
-                if (itemHash) {
-                    options.params[options.hashProp] = itemHash;
+                    if (itemHash) {
+                        options.params[options.hashProp] = itemHash;
+                    }
                 }
             }
 
