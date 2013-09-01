@@ -384,7 +384,7 @@ var simplestore =  (function () {
 
             // init store state
             if (options.appVersion) {
-                updateAppVersion(init.appVersion);
+                updateAppVersion(options.appVersion);
             }
 
             if (options.autoClean) {
