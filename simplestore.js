@@ -44,9 +44,10 @@ var simplestore =  (function () {
             noExpiry           : false,             // default flag to indicate permanent item that should never expire
             autoExpiry         : true,              // default flag to clean specific store entries after x number of days
             autoClean          : true,              // default flag to clean store after x number of days or after version upgrade
-            isSessionItem      : false,             // default flag to indicate type of storage to save item in
-            expiry             : 30,                // default expiry of items is 30 days
-            itemValidCode      : 304,               // server response indicating that a cached item is still valid
+            useSession         : false,             // default flag to indicate type of storage to save item in
+            expiry             : 15,                // default expiry of items is 15 days
+            cleanInterval      : 30,                // default interval of 30 days used for cleaning store
+            unmodStatus        : 304,               // server response indicating that a cached item is still valid ie data is unmodified
             method             : 'GET',             // default request method
             useHashFunc        : false,             // default flag to indicate the use of the hash function over the hash property
             params             : {},                // default parameters object for requests
@@ -108,21 +109,22 @@ var simplestore =  (function () {
          * method used to set up options object with default values if they haven't been set
          * or they've been set with invalid value
          *
-         * @params options - options object
+         * @param options - options object
          * @private
          */
         _setDefaultOptions = function (options) {
             for (var key in _options) {
                 if (_options.hasOwnProperty(key)) {
-                    var defaultValue = _options[key];
-                    if (options[key] !== void 0) {
+                    var defaultValue = _options[key],
+                        setValue = options[key];
+                    if (setValue === void 0) {
                         // if option value hasn't been set, set it to default value
                         options[key] = defaultValue;
                     }
                     else {
                         // if option is set to wrong type
                         // overwrite value with default
-                        if (typeof options[key] !== typeof defaultValue) {
+                        if (typeof setValue !== typeof defaultValue) {
                             options[key] = defaultValue;
                         }
                     }
@@ -149,12 +151,16 @@ var simplestore =  (function () {
         },
 
         /**
-         * Used to clean out data that was stored for an old version
+         * Used to update an apps version and cleans out data that was stored for an old version
          *
-         * @param newVersion - new version to store
+         * @param version - version to store
          * @private
          */
-        _clearOldVersionData = function(newVersion) {
+        _updateAppVersion = function (version) {
+            if (!version || typeof version !== 'string') {
+                throw new Error('must provide new app version of type string');
+            }
+
             var oldVersion = get(_appKey);
             // compare versions and clear if not the same
             if (oldVersion !== newVersion) {
@@ -183,7 +189,7 @@ var simplestore =  (function () {
             var ssKey = _wrapKey(key);
             if (!item) {
                 try {
-                    item = JSON.parse(options.isSessionItem ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
+                    item = JSON.parse(options.useSession ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
                 }
                 catch (exception) {
                     // ignore exception
@@ -191,17 +197,14 @@ var simplestore =  (function () {
             }
 
             if (item && item.days) {
-                options.expiry = item.days;
-                options.skipGet = true;
-                options.item = item;
-                update(key, item.data, options);
+                update(key, item.data, _extend(options, { expiry: item.days, skipGet: true, item: item }));
             }
         },
 
         /**
          * Method to build url with query params
          *
-         * @params options  - options object
+         * @param options  - options object
          * @return {string} - full url with query params
          * @private
          */
@@ -289,17 +292,17 @@ var simplestore =  (function () {
             }
 
             try {
-                var url   = _getUrl(options),
-                    xhr   = new XMLHttpRequest();
+                var url = _getUrl(options),
+                    xhr = new XMLHttpRequest();
 
                 options.isJson = url.indexOf('.json') !== -1;
                 xhr.onreadystatechange = function () {
-                    if (this.readyState == 4) { // If the HTTP request has completed
-                        if (this.status == 200 || this.status == options.itemValidCode) {  // if HTTP status response code is successful (200) or resource is unmodified (304)
+                    if (this.readyState === 4) { // If the HTTP request has completed
+                        if (this.status === 200 || this.status === options.unmodStatus) {  // if HTTP status response code is successful (200) or resource is unmodified (304)
 
                             var returndata;
                             // if cache item is still valid just return cachedItem in call back
-                            if (this.status == options.itemValidCode) {
+                            if (this.status === options.unmodStatus) {
                                 returndata = options.cachedItem;
                             }
                             else {
@@ -311,7 +314,7 @@ var simplestore =  (function () {
                                 //}
                             }
 
-                            if (options.method == 'DELETE') {
+                            if (options.method === 'DELETE') {
                                 // also remove item from store
                                 remove(key);
                                 unregisterReq(key);
@@ -359,8 +362,7 @@ var simplestore =  (function () {
          * Method to configure default values for simple store
          * and init store state
          *
-         * @param options - options object
-         * @param [init]  - init options to trigger clean and app version update
+         * @param options   - options object
          */
         init = function(options) {
             options = options || {};
@@ -374,7 +376,7 @@ var simplestore =  (function () {
                         // if not just fail to avoid surprises
                         var defaultValue = _options[key];
                         if (typeof setValue !== typeof defaultValue) {
-                            throw new Error('value for ' + key + ' must be of type: '+typeof defaultValue);
+                            throw new Error('Init(): value for ' + key + ' must be of type: '+typeof defaultValue);
                         }
 
                         _options[key] = setValue;
@@ -383,14 +385,13 @@ var simplestore =  (function () {
             }
 
             // init store state
-            if (options.appVersion) {
-                updateAppVersion(options.appVersion);
+            if (options.version) {
+                _updateAppVersion(options.version);
             }
 
             if (options.autoClean) {
                 clean();
             }
-
         },
 
         /**
@@ -430,26 +431,27 @@ var simplestore =  (function () {
                 return false;
             }
 
+            if (!key || typeof key !== 'string') {
+                throw new Error('Save(): must define key of type string');
+            }
+
             options = options || {};
             if (!options.ready) {
                 _setDefaultOptions(options);
             }
 
             try {
-                if (!key || typeof key !== 'string') {
-                    throw new Error('must define key of type string');
-                }
 
                 if (options.skipGet) {
                     item = options.item;
                 }
                 else {
-                    options.skipTouch = true; // transient flag used to prevent touch during get below
-                    item = get(key, options);
+                    // add transient flags to prevent touch during get below and to get item with meta data
+                    item = get(key, _extend(options, { skipTouch: true, addMetaData: true }));
                 }
 
                 if (!options.overwrite && item !== void 0) {
-                    throw new Error('store already contains item with key: ' + key + ', use update() to update item or set overwrite flag to true');
+                    throw new Error('Save(): store already contains item with key: ' + key + ', use update() to update item or set overwrite flag to true');
                 }
 
                 var _data = {
@@ -461,7 +463,7 @@ var simplestore =  (function () {
                     options.expiry = item !== void 0 ? item.days : options.expiry;
                 }
 
-                if (options.autoExpiry && !options.noExpiry && options.expiry) {
+                if (options.autoExpiry && !options.noExpiry) {
                     var expiry = new Date().getTime() + (options.expiry * _daysInMillisecs);
                     _extend(_data, {
                         exp: expiry,
@@ -471,7 +473,7 @@ var simplestore =  (function () {
 
                 var serialized = JSON.stringify(_data);
                 var ssKey = _wrapKey(key);
-                if (options.isSessionItem) {
+                if (options.useSession) {
                     sessionStorage.setItem(ssKey, serialized);
                 } else {
                     localStorage.setItem(ssKey, serialized);
@@ -495,8 +497,7 @@ var simplestore =  (function () {
          */
         update = function(key, value, options) {
             options = options || {};
-            options.overwrite = true;
-            return save(key, value, options);
+            return save(key, value, _extend(options, { overwrite: true }));
         },
 
         /**
@@ -507,9 +508,9 @@ var simplestore =  (function () {
          * @return {object} - stored item if found, otherwise undefined
          */
         get = function(key, options) {
-            var item = null;
-
             options = options || {};
+
+            var item = null;
 
             // if caching is disabled fake cache miss
             if (_cachingDisabled) {
@@ -517,12 +518,12 @@ var simplestore =  (function () {
             }
 
             if (!key || typeof key !== 'string') {
-                throw new Error('must provide storage entry key of type string to retrieve associated data');
+                throw new Error('Get(): must provide storage entry key of type string to retrieve associated data');
             }
 
             var ssKey = _wrapKey(key);
             try {
-                item = JSON.parse(options.isSessionItem ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
+                item = JSON.parse(options.useSession ? sessionStorage.getItem(ssKey) : localStorage.getItem(ssKey));
             }
             catch (exception) {
                 // ignore exception
@@ -533,7 +534,7 @@ var simplestore =  (function () {
                 var now = new Date().getTime();
                 if (item.exp && item.exp <= now) {
                     item = null;
-                    options.isSessionItem ? sessionStorage.removeItem(ssKey) : localStorage.removeItem(ssKey);
+                    options.useSession ? sessionStorage.removeItem(ssKey) : localStorage.removeItem(ssKey);
                 }
 
                 // touch item after cache hit except during updates and for hits for permanent items
@@ -542,6 +543,9 @@ var simplestore =  (function () {
                 }
             }
 
+            if (options.addMetaData) {
+                return item !== null ? item : void 0;
+            }
             return item !== null ? item.data : void 0;
         },
 
@@ -555,11 +559,11 @@ var simplestore =  (function () {
             options = options || {};
 
             if (!key || typeof key !== 'string') {
-                throw new Error('must provide storage entry key of type string to remove associated data');
+                throw new Error('Remove(): must provide storage entry key of type string to remove associated data');
             }
 
             var ssKey = _wrapKey(key);
-            if (options.isSessionItem) {
+            if (options.useSession) {
                 sessionStorage.removeItem(ssKey);
             } else {
                 localStorage.removeItem(ssKey);
@@ -572,7 +576,7 @@ var simplestore =  (function () {
         clean = function() {
             var item,
                 now        = new Date().getTime(),
-                nextRun    = now + (_options.expiry * _daysInMillisecs),
+                nextRun    = now + (_options.cleanInterval * _daysInMillisecs),
                 cleanupKey = 'cleanUpTime',
                 runTime    = get(cleanupKey);
 
@@ -596,19 +600,6 @@ var simplestore =  (function () {
                 // update time of next run
                 update(cleanupKey, nextRun, { noExpiry: true }); // set no expiry flag since clean up time is permanent
             }
-        },
-
-        /**
-         * Used to update an apps version
-         * if auto clean is set, clean old app data
-         *
-         * @param version - version to store
-         */
-        updateAppVersion = function (version) {
-            if (!version || typeof version !== 'string') {
-                throw new Error('must provide new app version of type string');
-            }
-            _clearOldVersionData(version);
         },
 
         /**
@@ -637,7 +628,7 @@ var simplestore =  (function () {
             }
 
             if (!options.url || typeof options.url !== 'string') {
-                throw new Error('must provide a url to fetch data with');
+                throw new Error('Fetch(): must provide a url to fetch data with');
             }
 
             // if cached version exists send its hash with request for server validation
@@ -694,7 +685,7 @@ var simplestore =  (function () {
             options.noExpiry = true; // keep urls permanently
 
             if (!options.url || typeof options.url !== 'string') {
-                throw new Error('must provide a url to fetch data with');
+                throw new Error('RegisterReq(): must provide a url to fetch data with');
             }
 
             var reqParams = {
@@ -731,7 +722,6 @@ var simplestore =  (function () {
         get: get,
         remove: remove,
         clean: clean,
-        updateAppVersion: updateAppVersion,
         fetch: fetch,
         send: send,
         registerReq: registerReq,
