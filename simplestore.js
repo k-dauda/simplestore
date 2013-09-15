@@ -21,7 +21,7 @@
 
  */
 
-var simplestore =  (function () {
+window.simplestore =  (function () {
 
     'use strict';
 
@@ -40,10 +40,12 @@ var simplestore =  (function () {
         _daysInMillisecs    = 86400000,
         _cachingDisabled    = false,
         _appKey             = 'appVer',
+        _undefined          = void 0,
         _options            = {
             noExpiry           : false,             // default flag to indicate permanent item that should never expire
             autoExpiry         : true,              // default flag to clean specific store entries after x number of days
             autoClean          : true,              // default flag to clean store after x number of days or after version upgrade
+            derefOperator      : '.',               // default operator to access resource attributes
             useSession         : false,             // default flag to indicate type of storage to save item in
             expiry             : 15,                // default expiry of items is 15 days
             cleanInterval      : 30,                // default interval of 30 days used for cleaning store
@@ -51,6 +53,7 @@ var simplestore =  (function () {
             method             : 'GET',             // default request method
             useHashFunc        : false,             // default flag to indicate the use of the hash function over the hash property
             params             : {},                // default parameters object for requests
+            headers            : {},                // default headers object for requests
             extract            : '',                // default property to extract data from server response
             hashProp           : 'hash',            // property for unique item hash/version for server validation - sent with request for updated or new values
             saveParams         : true,              // default flag to save request params
@@ -69,6 +72,16 @@ var simplestore =  (function () {
          */
         _wrapKey = function (key) {
             return _prefix+key;
+        },
+
+        /**
+         * simple trim implementation for IE8 support
+         *
+         * @param value - value to trim
+         * @private
+         */
+        _trim = function (value) {
+            return value.replace(/^\s+|\s+$/g, '');
         },
 
         /**
@@ -117,7 +130,7 @@ var simplestore =  (function () {
                 if (_options.hasOwnProperty(key)) {
                     var defaultValue = _options[key],
                         setValue = options[key];
-                    if (setValue === void 0) {
+                    if (setValue === _undefined) {
                         // if option value hasn't been set, set it to default value
                         options[key] = defaultValue;
                     }
@@ -197,14 +210,33 @@ var simplestore =  (function () {
             }
 
             if (item && item.days) {
-                update(key, item.data, _extend(options, { expiry: item.days, skipGet: true, item: item }));
+                update(key, item.data, _extend(options, { expiry: item.days, item: item }));
             }
         },
 
         /**
+         * Method to extract attributes from a resource key
+         *
+         * @param key       - resource key
+         * @param options   - options object
+         * @return {string} - parent key to resource
+         * @private
+         */
+        _extractAttrs = function (key, options) {
+            var attrs = key.split(options.derefOperator);
+            if (attrs.length > 1) {
+                var _key = attrs[0];
+                options.attributes = attrs.splice(1);
+                return _key;
+            }
+
+            return null;
+        } ,
+
+        /**
          * Method to build url with query params
          *
-         * @param options  - options object
+         * @param options   - options object
          * @return {string} - full url with query params
          * @private
          */
@@ -239,20 +271,20 @@ var simplestore =  (function () {
             else {
                 if (options.isJson && options.extract) {
                     var result = {};
-                    var fields = options.extract.split(',');
-                    for (var i = 0; i < fields.length; i++) {
-                        var nestedfields = fields[i].split('.');
+                    var attributes = options.extract.split(',');
+                    for (var i = 0; i < attributes.length; i++) {
+                        var attributes = attributes[i].split(options.derefOperator);
                         var data = response;
-                        var field = '';
-                        for (var j = 0; j < nestedfields.length; j++) {
-                            field = nestedfields[j];
+                        var attr = '';
+                        for (var j = 0; j < attributes.length; j++) {
+                            attr = attributes[j];
                             if (data) {
-                                data = data[field];
+                                data = data[attr];
                             }
                         }
 
-                        if (data && field) {
-                            result[field] = data;
+                        if (data && attr) {
+                            result[attr] = data;
                         }
                     }
 
@@ -342,6 +374,13 @@ var simplestore =  (function () {
                         }
                     }
                 }
+
+                // set custom headers
+                for (var header in options.headers) {
+                    if (options.headers.hasOwnProperty(header)) {
+                        xhr.setRequestHeader(header, options.headers[header]);
+                    }
+                }
                 xhr.send(data);
             }
             catch(exception) {
@@ -371,7 +410,7 @@ var simplestore =  (function () {
             for (var key in options) {
                 if (_options.hasOwnProperty(key)) {
                     var setValue = options[key];
-                    if (setValue !== void 0) {
+                    if (setValue !== _undefined) {
                         // just make sure options has proper value type
                         // if not just fail to avoid surprises
                         var defaultValue = _options[key];
@@ -440,18 +479,47 @@ var simplestore =  (function () {
                 _setDefaultOptions(options);
             }
 
+            if (!options.operation) {
+                options.operation = 'SAVE';
+            }
+
+            // check if looking for nested data, extract parent item key and attribute names
+            if (options.overwrite && !options.attributes && key.indexOf(options.derefOperator) !== -1 && options.operation === 'SAVE') {
+                var _key = _extractAttrs(key, options);
+                if (_key) {
+                    return save(_key, value, options);
+                }
+            }
+
             try {
 
-                if (options.skipGet) {
+                if (options.operation === 'GET') {
+                    // touching item after get operation
                     item = options.item;
                 }
                 else {
-                    // add transient flags to prevent touch during get below and to get item with meta data
-                    item = get(key, _extend(options, { skipTouch: true, addMetaData: true }));
+                    item = get(key, options);
                 }
 
-                if (!options.overwrite && item !== void 0) {
+                if (!options.overwrite && item !== _undefined) {
                     throw new Error('Save(): store already contains item with key: ' + key + ', use update() to update item or set overwrite flag to true');
+                }
+
+                if (options.overwrite && options.attributes && options.operation === 'SAVE' && item) {
+                    // if save operation is for a nested attribute, update attribute value
+                    var _item  = item.data;
+                    for (var i = 0; i < options.attributes.length; i++) {
+                        var attr = _trim(options.attributes[i]);
+                        if (i === options.attributes.length - 1 && _item && attr) {
+                            _item[attr] = value;
+                        }
+                        else if (attr && _item && _item.hasOwnProperty(attr)) {
+                            _item = _item[attr];
+                        }
+                    }
+
+                    // if no item attribute isn't found then this will have no effect
+                    value = item.data;
                 }
 
                 var _data = {
@@ -460,7 +528,7 @@ var simplestore =  (function () {
 
                 // if its an update to existing item carry over item's expiry duration
                 if (options.overwrite) {
-                    options.expiry = item !== void 0 ? item.days : options.expiry;
+                    options.expiry = item !== _undefined ? item.days : options.expiry;
                 }
 
                 if (options.autoExpiry && !options.noExpiry) {
@@ -508,17 +576,32 @@ var simplestore =  (function () {
          * @return {object} - stored item if found, otherwise undefined
          */
         get = function(key, options) {
+            // if caching is disabled fake cache miss
+            if (_cachingDisabled) {
+                return _undefined;
+            }
+
             options = options || {};
+            if (!options.ready) {
+                _setDefaultOptions(options);
+            }
+
+            if (!options.operation) {
+                options.operation = 'GET';
+            }
 
             var item = null;
 
-            // if caching is disabled fake cache miss
-            if (_cachingDisabled) {
-                return void 0;
-            }
-
             if (!key || typeof key !== 'string') {
                 throw new Error('Get(): must provide storage entry key of type string to retrieve associated data');
+            }
+
+            // check if looking for nested data, extract parent item key and attribute names
+            if (!options.attributes && key.indexOf(options.derefOperator) !== -1 && options.operation === 'GET') {
+                var _key = _extractAttrs(key, options);
+                if (_key) {
+                    return get(_key, options);
+                }
             }
 
             var ssKey = _wrapKey(key);
@@ -538,15 +621,30 @@ var simplestore =  (function () {
                 }
 
                 // touch item after cache hit except during updates and for hits for permanent items
-                if (!options.skipTouch && item && item.exp) {
+                if (options.operation === 'GET' && item && item.exp) {
                     _touch(key, options, item);
                 }
             }
 
-            if (options.addMetaData) {
-                return item !== null ? item : void 0;
+            if (options.operation === 'SAVE') {
+                // if executing a save operation return item with meta data
+                return item !== null ? item : _undefined;
             }
-            return item !== null ? item.data : void 0;
+
+            if (options.attributes && options.operation === 'GET') {
+                // if get operation is for a nested attribute, extract attribute value
+                for (var i = 0; i < options.attributes.length; i++) {
+                    var attr = _trim(options.attributes[i]);
+                    if (attr && item) {
+                        item = i === 0 ? item.data[attr] : item[attr];
+                    }
+                }
+
+                return item !== null ? item : _undefined;
+            }
+
+            // return saved data
+            return item !== null ? item.data : _undefined;
         },
 
         /**
@@ -641,7 +739,7 @@ var simplestore =  (function () {
                         itemHash = options.hashResolver(options.cachedItem);
                     }
                     else {
-                        if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf('.') === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
+                        if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf(options.derefOperator) === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
                             var item = options.cachedItem[options.extract];
                             if (item) {
                                 itemHash = item[options.hashProp]
