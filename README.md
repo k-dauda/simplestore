@@ -60,8 +60,8 @@ routine cleaning of localStorage.
 
     // Get the library object stored above.
     simplestore.get('library');
-    // returns login object stored above, note if useSession isn't set to true this will return undefined since 
-    // localStorage  will be checked for login object instead of sessionStorage
+    // returns login object stored above, note if useSession isn't set to true this will return undefined
+    // since localStorage  will be checked for login object instead of sessionStorage
     simplestore.get('login' { useSession: true });
     // Use derefOperator to get specific attributes of a store object
     simplestore.get('library.location');
