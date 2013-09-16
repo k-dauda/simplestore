@@ -11,6 +11,7 @@ __List of options__
 * noExpiry      - boolean, defaults to false, indicates if a store entry should be stored permanently
 * autoExpiry    - boolean, defaults to true, indicates if individual store entries should be expired automatically after X number of days see expiry option
 * autoClean     - boolean, defaults to true, indicates if store should be routinely cleaned after X number of days see cleanInterval option,  clean will remove all expired entries in store
+* derefOperator - string, default to dot operator, indicates nested value for a resource
 * useSession    - boolean, defaults to false, indicates if what type of web storage to use, sessionStorage or localStorage
 * expiry        - number, defaults to 15 (days), indicates that store entries should be expired after 15 days
 * cleanInterval - number, defaults to 30 (days), indicates that store should be cleaned every 30 days to remove expired items
@@ -26,52 +27,124 @@ __List of options__
 * hashResolver  - function used to resolve the hash or unique identifier of a resource
 * callBack      - function used to return data from ajax requests
 
-__Examples__
-* init ([options])
-   The init method is used to override the default values in the options list, clean data for old versions of an app and set up auto-cleaning for a specific intervals. 
-      1. simplestore.init(); // if you are happy with the default options and just want to set up auto cleaning 
-      2. simplestore.init({ version: 'version1.0.0' }); // if you want to add a version number for your application, once this version changes, it will clear the store to protect against old version data formats
-      3. simplestore.init({ noExpiry: true }); // if you want all items to be stored permanently
-* save (key, value, [options])
-   Used to save an item in web storage.
-      1. simplestore.save('library', { name: 'Central Library', location: 'Downtown', numMembers: 800 });
-      2. simplestore.save('login', { userId: 'pking', passed: 'somepassword' }, { useSession: true }); // save a value to session
-      3. simplestore.save('dimensions', { height: '100px', width: '200px' }, { noExpiry: true }); // save entry permanently
-* get (key, [options])
-   Used to retrieve an item from web storage
-      1. simplestore.get('library'); // returns library object above
-      2. simplestore.get('login' { useSession: true }); // returns login object above, note if useSession isn't set to true this will return undefined since localStorage will be checked instead of sessionStorage
-* update (key, [options])
-   Used to update an item in web storage
-      1. simplestore.update('dimensions', { height: '140px', width: '150px' }
-* remove (key, [options])
-   Used to remove an item from web storage
-      1. simplestore.remove('dimesions');
-* disable (boolean)
-   Used to disable caching 
-      1. simplestore.disable(true);
-* clean
-   Used to clean localStorage - ie remove expired items
-      1. simplestore.clean();
-* clear ()
-   Used to clear all items in store
-      1. simplestore.clear();
-* fetch(key, [options])
-   Used to get data from server and cache it, can also be used to validate cache
-      1. simplestore.fetch('allStudents', { url: 'allstudents.json', params: { classId: '1001', subjectId: '10005' }, callBack: function }); 
-      // This will create request url: allstudents.json?classId=1001&subjectId=10005 and will send the response back using the callBack function
-      // the response and the request parameters will also be cached so you can now do the following below.
-      2. simplestore.get('allStudents'); // this will return stored version of data
-      3. simplestore.fetch('allStudents'); // this will make another request and either return the stored version if the server returns a status of 304 or it will return the server response and update the cache
-* send (key, [options]);
-   Used to send update to server and update cache POST/PUT/DELETE
-      1. simplestore.send('some', { url: 'newStudent.json', callBack: function, data: { studentName: 'James', studentId: 10004 }, method: 'PUT' }); // This will update the store and set the data to the server
-* registerReq (key, [options])
-   Used to register a request for a resource, this is used in conjuction with the fetch method.
-      1. simplestore.reqisterReq('allStudents', { url: 'allstudents.json', params: { classId: '1001' } });
-* unregisterReq (key)
-   Used to unregister a request for a resource
-      1. simplestore.unregisterReq('allStudents');
+Examples
+--------
+__1. init ([options])__
+
+The init method is used to override the default values in the options list above, clean data for old versions of an app and set up auto-cleaning for a specific intervals.
+
+    // Call init with no options, to use defaults options and set up auto cleaning after the cleanInterval option's number of days
+    simplestore.init();
+    // Pass an app version, if you also want stored data to be cleared after a version upgrade.
+    simplestore.init({version: 'version1.0.0'});
+    // Set default values for any option
+    simplestore.init({autoClean: false, noExpiry: true});
+    
+__2. save (key, value, [options])__
+
+The save method is used to save an item in web storage and defaults to storing items to localStorage. 
+If the autoExpiry flag hasn't been turned off, items will be stored for expiry option's number of days.
+
+    // Save item to localStorage
+    simplestore.save('library', { name: 'Central Library', location: 'Downtown', numMembers: 800 });
+    // Save item to sessionStorage
+    simplestore.save('login', { userId: 'pking', passwd: 'somepassword' }, { useSession: true });
+    // Save an item permanently
+    simplestore.save('dimensions', { height: '100px', width: '200px' }, { noExpiry: true });
+      
+__3. get (key, [options])__
+
+The get method is used to retrieve an item from web storage, every cache hit will update the items expiry time so it's not cleaned out during 
+routine cleaning of localStorage.
+
+    // Get the library object stored above.
+    simplestore.get('library');
+    // returns login object stored above, note if useSession isn't set to true this will return undefined since localStorage
+    // will be checked for login object instead of sessionStorage
+    simplestore.get('login' { useSession: true });
+    // Use derefOperator to get specific attributes of a store object
+    simplestore.get('library.location');
+    
+__4. update (key, [options])__
+
+The update method is to update an item in web storage, will also store items that aren't in storage yet. NB - trying to save an item that already
+exists in storage will throw an error.
+
+    // Save an object localStorage (will also overwrite exisiting dimensions object or save a new one)
+    simplestore.update('dimensions', { height: '140px', width: '150px' }
+    // Update objects in sessionStorage
+    simplestore.update('login', { userId: 'pking', passwd: 'newpassword' }, { useSession: true });
+    // Update an attribute in an object
+    simplestore.update('login.passwd', 'anotherpasswd');
+    
+__5. remove (key, [options])__
+
+The remove method is used to remove an item from web storage.
+
+    // remove item from localStorage
+    simplestore.remove('dimesions');
+    // remove item from sessionStorage
+    simplestore.remove('login', { useSession: true });
+    
+__6. disable (boolean)__
+
+The disable method is used to disable caching, called with true, the get method will always return undefined and the save method will
+return false without saving the item to web storage.
+
+      simplestore.disable(true);
+      
+__7. clean__
+  
+The clean method is used to clean localStorage by removing expired items. If you call the init method with the autoClean
+option set to true, ideally you won't need to call this method manually.
+
+    simplestore.clean();
+      
+__8. clear__
+
+The clear method is used to clear all items in store regardless of whatever or not they are still valid.
+
+    simplestore.clear();
+    
+__9. fetch(key, [options])__
+
+The fetch method is used to get data from server and cache it, if a callBack function is provided, the data will be returned in the callBack function.
+This method can also be used to validate cache by passing a resource hash to the server. If the server returns a 304 status then the value of the resource
+is returned from the cache, otherwise a new value is loaded from the server response.
+
+    // The code below will send a request to the server and store the response in localStorage under the key 'allStudents'
+    simplestore.fetch('allStudents', { url: 'allstudents.json', 
+        params: { classId: '1001', subjectId: '10005' }, 
+        callBack: someCallBack }
+    ); 
+    // Once the response has been saved, the resource can be retrieved from storage with just its key
+    simplestore.get('allStudents');
+    // Calling fetch with the same key will make a request to the server with a resource hash, the server can return 
+    // a status of 304 to indicate the cached version is still valid or send by the updated version 
+    // of the resource which will also be cached
+    simplestore.fetch('allStudents');
+
+__10. send (key, [options])__
+
+The send method is used to send updates to server and update cache, defaults to a POST request.
+
+    simplestore.send('some', { url: 'newStudent.json', callBack: function, 
+            data: { studentName: 'James', studentId: 10004 },
+            method: 'PUT' }
+    );
+
+__11. registerReq (key, [options])__
+
+The registerReq method is used to register a request for a resource, this is used in conjuction with the fetch method.
+
+    simplestore.reqisterReq('allStudents', { url: 'allstudents.json', params: { classId: '1001' } });
+    simplestore.fetch('allStudents');
+    
+__12. unregisterReq (key)__
+
+The unregisterReq method is used to unregister a request for a resource.
+
+    simplestore.unregisterReq('allStudents');
    
 License
 ========
