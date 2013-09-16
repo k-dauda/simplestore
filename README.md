@@ -7,25 +7,25 @@ Usage
 =====
 simplestore has no dependencies, just include the script in your project and you are set
 
-__List of options__
-* noExpiry      - boolean, defaults to false, indicates if a store entry should be stored permanently
-* autoExpiry    - boolean, defaults to true, indicates if individual store entries should be expired automatically after X number of days see expiry option
-* autoClean     - boolean, defaults to true, indicates if store should be routinely cleaned after X number of days see cleanInterval option,  clean will remove all expired entries in store
-* derefOperator - string, default to dot operator, indicates nested value for a resource
-* useSession    - boolean, defaults to false, indicates if what type of web storage to use, sessionStorage or localStorage
-* expiry        - number, defaults to 15 (days), indicates that store entries should be expired after 15 days
-* cleanInterval - number, defaults to 30 (days), indicates that store should be cleaned every 30 days to remove expired items
-* unmodStatus   - number, defaults to 304, server response status code for un-modified data
-* method        - string, defaults to 'GET', request method for data
-* useHashFunc   - boolean, defaults to false, indicates whether to use a hash function to evaluate the hash of a resource
-* params        - object, key value parameters for a resources request
-* extract       - string, defaults to an empty string, indicates what field to extract data from, from server response
-* hashProp      - string, defaults to 'hash', for server validation indicates the parameter value to send and receive from the server that uniquely identifies a resource in a request/response
-* saveParams    - boolean, defaults to true, indicates if parameters for a request should be cached as well
-* useTransform  - boolean, defaults to false, indicates if a transform method should be used to extract the data from a server response
-* transform     - function used to transform a server response to a cacheable form
-* hashResolver  - function used to resolve the hash or unique identifier of a resource
-* callBack      - function used to return data from ajax requests
+___List of options___
+* __noExpiry__      - boolean, defaults to false, indicates if a store entry should be stored permanently
+* __autoExpiry__    - boolean, defaults to true, indicates if individual store entries should be expired automatically after X number of days see expiry option
+* __autoClean__     - boolean, defaults to true, indicates if store should be routinely cleaned after X number of days see cleanInterval option,  clean will remove all expired entries in store
+* __derefOperator__ - string, default to dot operator, indicates nested value for a resource
+* __useSession__    - boolean, defaults to false, indicates if what type of web storage to use, sessionStorage or localStorage
+* __expiry__        - number, defaults to 15 (days), indicates that store entries should be expired after 15 days
+* __cleanInterval__ - number, defaults to 30 (days), indicates that store should be cleaned every 30 days to remove expired items
+* __unmodStatus__   - number, defaults to 304, server response status code for un-modified data
+* __method__        - string, defaults to 'GET', request method for data
+* __useHashFunc__   - boolean, defaults to false, indicates whether to use a hash function to evaluate the hash of a resource
+* __params__        - object, key value parameters for a resources request
+* __extract__       - string, defaults to an empty string, indicates what field to extract data from, from server response
+* __hashProp__      - string, defaults to 'hash', for server validation indicates the parameter value to send and receive from the server that uniquely identifies a resource in a request/response
+* __saveParams__    - boolean, defaults to true, indicates if parameters for a request should be cached as well
+* __useTransform__  - boolean, defaults to false, indicates if a transform method should be used to extract the data from a server response
+* __transform__     - function used to transform a server response to a cacheable form
+* __hashResolver__  - function used to resolve the hash or unique identifier of a resource
+* __callBack__      - function used to return data from ajax requests
 
 Examples
 --------
@@ -33,7 +33,8 @@ __1. init ([options])__
 
 The init method is used to override the default values in the options list above, clean data for old versions of an app and set up auto-cleaning for a specific intervals.
 
-    // Call init with no options, to use defaults options and set up auto cleaning after the cleanInterval option's number of days
+    // Call init with no options, to use defaults options and set up auto cleaning after the 
+    // cleanInterval option's number of days
     simplestore.init();
     // Pass an app version, if you also want stored data to be cleared after a version upgrade.
     simplestore.init({version: 'version1.0.0'});
@@ -59,8 +60,8 @@ routine cleaning of localStorage.
 
     // Get the library object stored above.
     simplestore.get('library');
-    // returns login object stored above, note if useSession isn't set to true this will return undefined since localStorage
-    // will be checked for login object instead of sessionStorage
+    // returns login object stored above, note if useSession isn't set to true this will return undefined since 
+    // localStorage  will be checked for login object instead of sessionStorage
     simplestore.get('login' { useSession: true });
     // Use derefOperator to get specific attributes of a store object
     simplestore.get('library.location');
@@ -112,16 +113,17 @@ The fetch method is used to get data from server and cache it, if a callBack fun
 This method can also be used to validate cache by passing a resource hash to the server. If the server returns a 304 status then the value of the resource
 is returned from the cache, otherwise a new value is loaded from the server response.
 
-    // The code below will send a request to the server and store the response in localStorage under the key 'allStudents'
+    // The code below will send a request to the server and store the response in localStorage under 
+    // the key 'allStudents'
     simplestore.fetch('allStudents', { url: 'allstudents.json', 
         params: { classId: '1001', subjectId: '10005' }, 
         callBack: someCallBack }
     ); 
     // Once the response has been saved, the resource can be retrieved from storage with just its key
     simplestore.get('allStudents');
-    // Calling fetch with the same key will make a request to the server with a resource hash, the server can return 
-    // a status of 304 to indicate the cached version is still valid or send by the updated version 
-    // of the resource which will also be cached
+    // Calling fetch with the same key will make a request to the server with a resource hash, the server 
+    // can return a status of 304 to indicate the cached version is still valid or send by the 
+    // updated version of the resource which will also be cached
     simplestore.fetch('allStudents');
 
 __10. send (key, [options])__
