@@ -176,12 +176,12 @@ window.simplestore =  (function () {
 
             var oldVersion = get(_appKey);
             // compare versions and clear if not the same
-            if (oldVersion !== newVersion) {
+            if (oldVersion !== version) {
                 clear();
             }
 
             // update app version to latest
-            update(_appKey, newVersion, { noExpiry: true });
+            update(_appKey, version, { noExpiry: true });
         },
 
         /**
@@ -424,11 +424,10 @@ window.simplestore =  (function () {
             }
 
             // init store state
-            if (options.version) {
-                _updateAppVersion(options.version);
-            }
-
-            if (options.autoClean) {
+            if (_options.autoClean) {
+                if (options.version) {
+                    _updateAppVersion(options.version);
+                }
                 clean();
             }
         },
