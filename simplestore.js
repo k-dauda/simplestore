@@ -1,4 +1,6 @@
 /*
+ The MIT License (MIT)
+
  Copyright (c) 2013 Kazah Dauda <kazah.a.dauda@gmail.com> (http://github.com/k-dauda/)
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,7 +23,7 @@
 
  */
 
-window.simplestore =  (function () {
+(function () {
 
     'use strict';
 
@@ -809,8 +811,8 @@ window.simplestore =  (function () {
             remove(_reqPrefix+key);
         };
 
-
-    return {
+    // export module
+    window.simplestore = {
         init: init,
         clear: clear,
         disable: disable,
