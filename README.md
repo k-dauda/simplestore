@@ -1,7 +1,9 @@
 simplestore
 ===========
 
-A simple lightweight manager and interface to HTML5 web storage with no dependencies, just plug and play.
+A simple lightweight manager and interface to HTML5 web storage with no dependencies, just include simplestore.js in your project and proceed.
+
+Browser support for all modern browsers and IE8+.
 
 Usage
 =====
@@ -11,7 +13,7 @@ ___List of options___
 * __noExpiry__      - boolean, defaults to false, indicates if a store entry should be stored permanently
 * __autoExpiry__    - boolean, defaults to true, indicates if individual store entries should be expired automatically after X number of days see expiry option
 * __autoClean__     - boolean, defaults to true, indicates if store should be routinely cleaned after X number of days see cleanInterval option,  clean will remove all expired entries in store
-* __derefOperator__ - string, default to dot operator, indicates nested value for a resource
+* __attrAccessor__  - string, defaults to dot operator, indicates nested value for a resource
 * __useSession__    - boolean, defaults to false, indicates if what type of web storage to use, sessionStorage or localStorage
 * __expiry__        - number, defaults to 15 (days), indicates that store entries should be expired after 15 days
 * __cleanInterval__ - number, defaults to 30 (days), indicates that store should be cleaned every 30 days to remove expired items
@@ -63,7 +65,7 @@ routine cleaning of localStorage.
     // returns login object stored above, note if useSession isn't set to true this will return undefined
     // since localStorage  will be checked for login object instead of sessionStorage
     simplestore.get('login' { useSession: true });
-    // Use derefOperator to get specific attributes of a store object
+    // Use attrAccessor to get specific attributes of a store object
     simplestore.get('library.location');
     
 __4. update (key, [options])__
@@ -75,7 +77,7 @@ exists in storage will throw an error.
     simplestore.update('dimensions', { height: '140px', width: '150px' }
     // Update objects in sessionStorage
     simplestore.update('login', { userId: 'pking', passwd: 'newpassword' }, { useSession: true });
-    // Update an attribute in an object
+    // Use attrAccessor to update a specific attribute in an object
     simplestore.update('login.passwd', 'anotherpasswd');
     
 __5. remove (key, [options])__
