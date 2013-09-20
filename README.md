@@ -1,13 +1,13 @@
 simplestore
 ===========
 
-A simple lightweight manager and interface to HTML5 web storage with no dependencies, just include simplestore.js in your project and proceed.
-
-Browser support for all modern browsers and IE8+.
+A simple lightweight manager and interface to HTML5 web storage with no dependencies, just plug and play.
 
 Usage
 =====
-simplestore has no dependencies, just include the script in your project and you are set
+simplestore has no dependencies, just include the script in your project and start using.
+
+Browser support for all modern browsers and IE8+.
 
 ___List of options___
 * __noExpiry__      - boolean, defaults to false, indicates if a store entry should be stored permanently
