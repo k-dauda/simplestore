@@ -43,16 +43,21 @@
         _cachingDisabled    = false,
         _appKey             = 'appVer',
         _undefined          = void 0,
+        _save               = 'SAVE',
+        _get                = 'GET',
+        _post               = 'POST',
+        _put                = 'PUT',
+        _delete             = 'DELETE',
         _options            = {
             noExpiry           : false,             // default flag to indicate permanent item that should never expire
             autoExpiry         : true,              // default flag to clean specific store entries after x number of days
             autoClean          : true,              // default flag to clean store after x number of days or after version upgrade
-            derefOperator      : '.',               // default operator to access resource attributes
+            attrAccessor       : '.',               // default operator to access resource attributes
             useSession         : false,             // default flag to indicate type of storage to save item in
             expiry             : 15,                // default expiry of items is 15 days
             cleanInterval      : 30,                // default interval of 30 days used for cleaning store
             unmodStatus        : 304,               // server response indicating that a cached item is still valid ie data is unmodified
-            method             : 'GET',             // default request method
+            method             : _get,              // default request method
             useHashFunc        : false,             // default flag to indicate the use of the hash function over the hash property
             params             : {},                // default parameters object for requests
             headers            : {},                // default headers object for requests
@@ -225,7 +230,7 @@
          * @private
          */
         _extractAttrs = function (key, options) {
-            var attrs = key.split(options.derefOperator);
+            var attrs = key.split(options.attrAccessor);
             if (attrs.length > 1) {
                 var _key = attrs[0];
                 options.attributes = attrs.splice(1);
@@ -244,7 +249,7 @@
          */
         _getUrl = function (options) {
             var url = options.url;
-            if (options.method === 'GET') {
+            if (options.method === _get) {
                 if (options.params) {
                     for (var key in options.params) {
                         if (options.params.hasOwnProperty(key)) {
@@ -275,7 +280,7 @@
                     var result = {};
                     var attributes = options.extract.split(',');
                     for (var i = 0; i < attributes.length; i++) {
-                        var attributes = attributes[i].split(options.derefOperator);
+                        var attributes = attributes[i].split(options.attrAccessor);
                         var data = response;
                         var attr = '';
                         for (var j = 0; j < attributes.length; j++) {
@@ -348,7 +353,7 @@
                                 //}
                             }
 
-                            if (options.method === 'DELETE') {
+                            if (options.method === _delete) {
                                 // also remove item from store
                                 remove(key);
                                 unregisterReq(key);
@@ -368,7 +373,7 @@
 
                 var data = null;
                 xhr.open(options.method, url, true);
-                if (options.method === 'POST' || options.method === 'PUT') {
+                if (options.method === _post || options.method === _put) {
                     if (options.data) {
                         data = options.isJson ? JSON.stringify(options.data) : options.data;
                         if (options.isJson) {
@@ -481,11 +486,11 @@
             }
 
             if (!options.operation) {
-                options.operation = 'SAVE';
+                options.operation = _save;
             }
 
             // check if looking for nested data, extract parent item key and attribute names
-            if (options.overwrite && !options.attributes && key.indexOf(options.derefOperator) !== -1 && options.operation === 'SAVE') {
+            if (options.overwrite && !options.attributes && key.indexOf(options.attrAccessor) !== -1 && options.operation === _save) {
                 var _key = _extractAttrs(key, options);
                 if (_key) {
                     return save(_key, value, options);
@@ -494,7 +499,7 @@
 
             try {
 
-                if (options.operation === 'GET') {
+                if (options.operation === _get) {
                     // touching item after get operation
                     item = options.item;
                 }
@@ -506,7 +511,7 @@
                     throw new Error('Save(): store already contains item with key: ' + key + ', use update() to update item or set overwrite flag to true');
                 }
 
-                if (options.overwrite && options.attributes && options.operation === 'SAVE' && item) {
+                if (options.overwrite && options.attributes && options.operation === _save && item) {
                     // if save operation is for a nested attribute, update attribute value
                     var _item  = item.data;
                     for (var i = 0; i < options.attributes.length; i++) {
@@ -588,7 +593,7 @@
             }
 
             if (!options.operation) {
-                options.operation = 'GET';
+                options.operation = _get;
             }
 
             var item = null;
@@ -598,7 +603,7 @@
             }
 
             // check if looking for nested data, extract parent item key and attribute names
-            if (!options.attributes && key.indexOf(options.derefOperator) !== -1 && options.operation === 'GET') {
+            if (!options.attributes && key.indexOf(options.attrAccessor) !== -1 && options.operation === _get) {
                 var _key = _extractAttrs(key, options);
                 if (_key) {
                     return get(_key, options);
@@ -622,17 +627,17 @@
                 }
 
                 // touch item after cache hit except during updates and for hits for permanent items
-                if (options.operation === 'GET' && item && item.exp) {
+                if (options.operation === _get && item && item.exp) {
                     _touch(key, options, item);
                 }
             }
 
-            if (options.operation === 'SAVE') {
+            if (options.operation === _save) {
                 // if executing a save operation return item with meta data
                 return item !== null ? item : _undefined;
             }
 
-            if (options.attributes && options.operation === 'GET') {
+            if (options.attributes && options.operation === _get) {
                 // if get operation is for a nested attribute, extract attribute value
                 for (var i = 0; i < options.attributes.length; i++) {
                     var attr = _trim(options.attributes[i]);
@@ -740,7 +745,7 @@
                         itemHash = options.hashResolver(options.cachedItem);
                     }
                     else {
-                        if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf(options.derefOperator) === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
+                        if (options.extract && options.extract.indexOf(',') === -1 && options.extract.indexOf(options.attrAccessor) === -1) {  // if data extracted from multiple fields or nested resource a hash function would work better in retriving hash
                             var item = options.cachedItem[options.extract];
                             if (item) {
                                 itemHash = item[options.hashProp]
@@ -767,7 +772,7 @@
             options = options || {};
 
             if (!options.method) {
-                options.method = 'POST';
+                options.method = _post;
             }
 
             _request(key, options);
