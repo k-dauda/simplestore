@@ -1,33 +1,14 @@
 simplestore
 ===========
 
-A simple lightweight manager and interface to HTML5 web storage with no dependencies, just plug and play.
+A simple lightweight manager and interface to HTML5 web storage with no dependencies, just plug and play. 
+Use simplestore to store, update and retrive data from web storage and manage stored data given the limited size of web storage.
+Store entries are automatically stamped and cleaned out based on an expiry time. Store entries can also been validated by a server.
 
 Usage
 =====
 simplestore has no dependencies, just include the script in your project and start using.
-
 Browser support for all modern browsers and IE8+.
-
-___List of options___
-* __noExpiry__      - boolean, defaults to false, indicates if a store entry should be stored permanently
-* __autoExpiry__    - boolean, defaults to true, indicates if individual store entries should be expired automatically after X number of days see expiry option
-* __autoClean__     - boolean, defaults to true, indicates if store should be routinely cleaned after X number of days see cleanInterval option,  clean will remove all expired entries in store
-* __attrAccessor__  - string, defaults to dot operator, indicates nested value for a resource
-* __useSession__    - boolean, defaults to false, indicates if what type of web storage to use, sessionStorage or localStorage
-* __expiry__        - number, defaults to 15 (days), indicates that store entries should be expired after 15 days
-* __cleanInterval__ - number, defaults to 30 (days), indicates that store should be cleaned every 30 days to remove expired items
-* __unmodStatus__   - number, defaults to 304, server response status code for un-modified data
-* __method__        - string, defaults to 'GET', request method for data
-* __useHashFunc__   - boolean, defaults to false, indicates whether to use a hash function to evaluate the hash of a resource
-* __params__        - object, key value parameters for a resources request
-* __extract__       - string, defaults to an empty string, indicates what field to extract data from, from server response
-* __hashProp__      - string, defaults to 'hash', for server validation indicates the parameter value to send and receive from the server that uniquely identifies a resource in a request/response
-* __saveParams__    - boolean, defaults to true, indicates if parameters for a request should be cached as well
-* __useTransform__  - boolean, defaults to false, indicates if a transform method should be used to extract the data from a server response
-* __transform__     - function used to transform a server response to a cacheable form
-* __hashResolver__  - function used to resolve the hash or unique identifier of a resource
-* __callBack__      - function used to return data from ajax requests
 
 Examples
 --------
@@ -119,8 +100,8 @@ is returned from the cache, otherwise a new value is loaded from the server resp
     // the key 'allStudents'
     simplestore.fetch('allStudents', { url: 'allstudents.json', 
         params: { classId: '1001', subjectId: '10005' }, 
-        callBack: someCallBack }
-    ); 
+        callBack: someCallBack 
+    }); 
     // Once the response has been saved, the resource can be retrieved from storage with just its key
     simplestore.get('allStudents');
     // Calling fetch with the same key will make a request to the server with a resource hash, the server 
@@ -134,8 +115,8 @@ The send method is used to send updates to server and update cache, defaults to 
 
     simplestore.send('some', { url: 'newStudent.json', callBack: function, 
             data: { studentName: 'James', studentId: 10004 },
-            method: 'PUT' }
-    );
+            method: 'PUT' 
+    });
 
 __11. registerReq (key, [options])__
 
@@ -149,7 +130,27 @@ __12. unregisterReq (key)__
 The unregisterReq method is used to unregister a request for a resource.
 
     simplestore.unregisterReq('allStudents');
-   
+
+___List of options___
+* __noExpiry__      - boolean, defaults to false, indicates if a store entry should be stored permanently
+* __autoExpiry__    - boolean, defaults to true, indicates if individual store entries should be expired automatically after X number of days see expiry option
+* __autoClean__     - boolean, defaults to true, indicates if store should be routinely cleaned after X number of days see cleanInterval option,  clean will remove all expired entries in store
+* __attrAccessor__  - string, defaults to dot operator, indicates nested value for a resource
+* __useSession__    - boolean, defaults to false, indicates if what type of web storage to use, sessionStorage or localStorage
+* __expiry__        - number, defaults to 15 (days), indicates that store entries should be expired after 15 days
+* __cleanInterval__ - number, defaults to 30 (days), indicates that store should be cleaned every 30 days to remove expired items
+* __unmodStatus__   - number, defaults to 304, server response status code for un-modified data
+* __method__        - string, defaults to 'GET', request method for data
+* __useHashFunc__   - boolean, defaults to false, indicates whether to use a hash function to evaluate the hash of a resource
+* __params__        - object, key value parameters for a resources request
+* __extract__       - string, defaults to an empty string, indicates what field to extract data from, from server response
+* __hashProp__      - string, defaults to 'hash', for server validation indicates the parameter value to send and receive from the server that uniquely identifies a resource in a request/response
+* __saveParams__    - boolean, defaults to true, indicates if parameters for a request should be cached as well
+* __useTransform__  - boolean, defaults to false, indicates if a transform method should be used to extract the data from a server response
+* __transform__     - function used to transform a server response to a cacheable form
+* __hashResolver__  - function used to resolve the hash or unique identifier of a resource
+* __callBack__      - function used to return data from ajax requests
+
 License
 ========
 
