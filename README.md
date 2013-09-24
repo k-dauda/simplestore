@@ -49,7 +49,7 @@ routine cleaning of localStorage.
     // Use attrAccessor to get specific attributes of a store object
     simplestore.get('library.location');
     
-__4. update (key, [options])__
+__4. update (key, value, [options])__
 
 The update method is to update an item in web storage, will also store items that aren't in storage yet. NB - trying to save an item that already
 exists in storage will throw an error.
@@ -60,6 +60,8 @@ exists in storage will throw an error.
     simplestore.update('login', { userId: 'pking', passwd: 'newpassword' }, { useSession: true });
     // Use attrAccessor to update a specific attribute in an object
     simplestore.update('login.passwd', 'anotherpasswd');
+    // If you use keys that contain the dot operator, you can specify a different attrAccessor
+    simplestore.update('login:passwd', 'anotherpasswd',  { attrAccessor: ':' });
     
 __5. remove (key, [options])__
 
